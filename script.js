@@ -171,27 +171,146 @@ function checkGameState() {
     return null;
 }
 
+function getRandomOffset() {
+    // Reduzindo a variação para ser mais sutil
+    return Math.random() * 12 - 6;
+}
+
+function generateRandomCirclePath() {
+    // Centro base do círculo com variação mais sutil
+    const centerX = 50 + getRandomOffset() * 0.3;
+    const centerY = 50 + getRandomOffset() * 0.3;
+    
+    // Raio com variação menor para manter consistência
+    const radius = 30 + (Math.random() * 2 - 1);
+    
+    // Calculando pontos de controle com variações suaves
+    const numPoints = 8;
+    const points = [];
+    
+    for (let i = 0; i < numPoints; i++) {
+        const angle = (i / numPoints) * Math.PI * 2;
+        const variation = 1 + (Math.random() * 0.1 - 0.05); // Variação de ±5%
+        
+        const x = centerX + Math.cos(angle) * radius * variation;
+        const y = centerY + Math.sin(angle) * radius * variation;
+        points.push({ x, y });
+    }
+    
+    // Criando o caminho SVG com curvas suaves entre os pontos
+    let path = `M ${points[0].x},${points[0].y}`;
+    
+    for (let i = 0; i < points.length; i++) {
+        const current = points[i];
+        const next = points[(i + 1) % points.length];
+        const nextNext = points[(i + 2) % points.length];
+        
+        // Calculando pontos de controle para curva suave
+        const cp1x = current.x + (next.x - points[(i - 1 + points.length) % points.length].x) * 0.15;
+        const cp1y = current.y + (next.y - points[(i - 1 + points.length) % points.length].y) * 0.15;
+        const cp2x = next.x - (nextNext.x - current.x) * 0.15;
+        const cp2y = next.y - (nextNext.y - current.y) * 0.15;
+        
+        path += ` C ${cp1x},${cp1y} ${cp2x},${cp2y} ${next.x},${next.y}`;
+    }
+    
+    return path;
+}
+
+function getRandomXPath() {
+    const startOffset = 15;
+    const variance = 4;
+    
+    function addNoise(path, amplitude = 1) {
+        // Adiciona pequenos desvios ao longo do caminho para simular tremor da mão
+        const points = path.split(' ');
+        return points.map(point => {
+            if (point.includes(',')) {
+                const [x, y] = point.split(',');
+                return `${parseFloat(x) + (Math.random() - 0.5) * amplitude},${parseFloat(y) + (Math.random() - 0.5) * amplitude}`;
+            }
+            return point;
+        }).join(' ');
+    }
+    
+    function generateControlPoints() {
+        // Gera pontos de controle intermediários para criar uma curva mais natural
+        const points = [];
+        const numPoints = 3;
+        
+        for (let i = 0; i <= numPoints; i++) {
+            const t = i / numPoints;
+            const variance = Math.sin(t * Math.PI) * 8; // Maior variação no meio do traço
+            points.push({
+                x: 50 + (Math.random() - 0.5) * variance,
+                y: 50 + (Math.random() - 0.5) * variance
+            });
+        }
+        return points;
+    }
+    
+    // Primeira linha diagonal
+    const cp1 = generateControlPoints();
+    const line1 = `M${20 + Math.random() * 5},${20 + Math.random() * 5} ` +
+                 `C${cp1[0].x},${cp1[0].y} ${cp1[1].x},${cp1[1].y} ` +
+                 `${80 - Math.random() * 5},${80 - Math.random() * 5}`;
+    
+    // Segunda linha diagonal
+    const cp2 = generateControlPoints();
+    const line2 = `M${80 - Math.random() * 5},${20 + Math.random() * 5} ` +
+                 `C${cp2[0].x},${cp2[0].y} ${cp2[1].x},${cp2[1].y} ` +
+                 `${20 + Math.random() * 5},${80 - Math.random() * 5}`;
+    
+    return {
+        line1: addNoise(line1),
+        line2: addNoise(line2)
+    };
+}
+
 function placeMark(cell, currentClass) {
     cell.classList.add(currentClass);
     
     if (currentClass === 'x') {
-        // Cria as linhas do X
-        const line1 = document.createElement('div');
-        const line2 = document.createElement('div');
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute('viewBox', '0 0 100 100');
+        svg.classList.add('mark-svg');
+
+        const paths = getRandomXPath();
+        const line1 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        const line2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+
+        line1.setAttribute('d', paths.line1);
+        line2.setAttribute('d', paths.line2);
+
+        line1.classList.add('x-line');
+        line2.classList.add('x-line');
         
-        line1.className = 'x-line x-line-1';
-        line2.className = 'x-line x-line-2';
+        // Adiciona uma variação aleatória na velocidade de desenho
+        const baseSpeed = 0.5; // velocidade base em segundos
+        const speedVariation = 0.2; // variação máxima
         
-        cell.appendChild(line1);
-        cell.appendChild(line2);
+        const speed1 = baseSpeed + (Math.random() * speedVariation - speedVariation/2);
+        const speed2 = baseSpeed + (Math.random() * speedVariation - speedVariation/2);
+        
+        line1.style.animation = `drawXLine ${speed1}s cubic-bezier(0.25, 0.1, 0.25, 1) forwards`;
+        line2.style.animation = `drawXLine ${speed2}s cubic-bezier(0.25, 0.1, 0.25, 1) forwards`;
+        
+        // Adiciona um delay aleatório para a segunda linha
+        line2.style.animationDelay = `${0.3 + Math.random() * 0.2}s`;
+        
+        svg.appendChild(line1);
+        svg.appendChild(line2);
+        cell.appendChild(svg);
     } else if (currentClass === 'o') {
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "path");
         
         svg.setAttribute('viewBox', '0 0 100 100');
-        circle.setAttribute('cx', '50');
-        circle.setAttribute('cy', '50');
-        circle.setAttribute('r', '40');
+        svg.classList.add('mark-svg');
+        
+        // Gera um caminho de círculo aleatório
+        circle.setAttribute('d', generateRandomCirclePath());
+        circle.classList.add('o-line');
         
         svg.appendChild(circle);
         cell.appendChild(svg);
