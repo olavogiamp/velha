@@ -2,9 +2,9 @@
 
 A beautiful and modern Tic Tac Toe game created with the assistance of AI. This project showcases the perfect blend of classic gameplay with modern web technologies and sleek animations.
 
-![Game Screenshot]()
+![Preview](preview.png)
 
-[Play the game here!]()
+[Play the game here!](https://olavogiamp.github.io/velha/)
 
 ## Features
 
